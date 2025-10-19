@@ -1,5 +1,9 @@
 # 🧩 ComfyUI - Random Tag Weights Node
 
+
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/analaser)
+
 A custom **ComfyUI** node that randomizes tag weights for text prompts.  
 Useful for dynamic prompt generation or creative experimentation in AI image workflows.
 
@@ -45,4 +49,5 @@ Useful for dynamic prompt generation or creative experimentation in AI image wor
 
 1. Download or clone this repo into your `ComfyUI/custom_nodes` folder
  
+
 2. Restart ComfyUI — your new node will appear under the Text category!
