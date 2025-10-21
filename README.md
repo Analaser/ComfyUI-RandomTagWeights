@@ -60,6 +60,7 @@ Useful for dynamic prompt generation or creative experimentation in AI image wor
 
 ## 🖼️ Screenshot
 
-![Some description](screenshot.png)
+![screenshot](Screenshot.png)
+
 
 
