@@ -51,3 +51,15 @@ Useful for dynamic prompt generation or creative experimentation in AI image wor
  
 
 2. Restart ComfyUI — your new node will appear under the Text category!
+
+---
+
+## 🖼️ Workflow 
+
+![workflow](workflow.png)
+
+## 🖼️ Screenshot
+
+![Some description](screenshot.png)
+
+
