@@ -28,7 +28,7 @@ Documentation = "https://github.com/Analaser/ComfyUI-RandomTagWeights/wiki"
 "Bug Tracker" = "https://github.com/Analaser/ComfyUI-RandomTagWeights/issues"
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "analaser"
 DisplayName = "ComfyUI-RandomTagWeights"
 Icon = ""
 includes = [] 
