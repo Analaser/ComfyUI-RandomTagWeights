@@ -6,11 +6,11 @@ class RandomTagWeights:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": ("STRING", {"multiline": True, "default": "big cat, dog, small bird, red fox, blue sky, green tree, tall building, fast car, loud noise, bright light"}),
+                "text": ("STRING", {"multiline": True, "default": " "}),
                 "min_weight": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.1}),
                 "max_weight": ("FLOAT", {"default": 1.3, "min": 0.0, "max": 10.0, "step": 0.1}),
-                "threshold": ("FLOAT", {"default": 1.2, "min": 0.0, "max": 10.0, "step": 0.1}),
-                "max_tags": ("INT", {"default": 3, "min": 1, "max": 10000, "step": 1}),
+                "threshold": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.1}),
+                "max_tags": ("INT", {"default": 30, "min": 1, "max": 10000, "step": 1}),
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "shuffle_tags": ("BOOLEAN", {"default": True}),
             },
