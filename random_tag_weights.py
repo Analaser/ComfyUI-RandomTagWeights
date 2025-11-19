@@ -6,16 +6,109 @@ class RandomTagWeights:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "text": ("STRING", {"multiline": True, "default": " "}),
-                "min_weight": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.1}),
-                "max_weight": ("FLOAT", {"default": 1.3, "min": 0.0, "max": 10.0, "step": 0.1}),
-                "threshold": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 10.0, "step": 0.1}),
-                "max_tags": ("INT", {"default": 30, "min": 1, "max": 10000, "step": 1}),
-                "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                "shuffle_tags": ("BOOLEAN", {"default": True}),
+                "text": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "tooltip": "Default input text if no external input_text is provided."
+                    }
+                ),
+                "min_weight": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "max": 10.0,
+                        "step": 0.1,
+                        "tooltip": "The lowest possible random weight assigned."
+                    }
+                ),
+                "max_weight": (
+                    "FLOAT",
+                    {
+                        "default": 1.3,
+                        "min": 0.0,
+                        "max": 10.0,
+                        "step": 0.1,
+                        "tooltip": "The highest possible random weight assigned."
+                    }
+                ),
+                "threshold": (
+                    "FLOAT",
+                    {
+                        "default": 0.0,
+                        "min": 0.0,
+                        "max": 10.0,
+                        "step": 0.1,
+                        "tooltip": "Tags with generated weight below this value are discarded."
+                    }
+                ),
+                "max_tags": (
+                    "INT",
+                    {
+                        "default": 30,
+                        "min": 1,
+                        "max": 10000,
+                        "step": 1,
+                        "tooltip": "Maximum number of tags allowed in the output."
+                    }
+                ),
+                "seed": (
+                    "INT",
+                    {
+                        "default": 0,
+                        "min": 0,
+                        "max": 0xffffffffffffffff,
+                        "tooltip": "Random seed for consistent repeatable output."
+                    }
+                ),
+                "shuffle_tags": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Randomize the order of output tags."
+                    }
+                ),
+                "detect_by_commas": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "If ON: tags are split by commas. If OFF: tags are split by spaces."
+                    }
+                ),
+                "group_parentheses": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "If ON: anything inside (...) is treated as one tag."
+                    }
+                ),
+                "preserve_existing_weights": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "If ON: tags already containing weights (tag:1.0) will not be modified."
+                    }
+                ),
+                "output_with_commas": (
+                    "BOOLEAN",
+                    {
+                        "default": True,
+                        "tooltip": "Choose output format: commas or spaces between final tags."
+                    }
+                ),
             },
             "optional": {
-                "input_text": ("STRING", {"multiline": True, "default": "", "forceInput": True}),
+                "input_text": (
+                    "STRING",
+                    {
+                        "multiline": True,
+                        "default": "",
+                        "forceInput": True,
+                        "tooltip": "External text input from another node."
+                    }
+                ),
             }
         }
 
@@ -24,7 +117,24 @@ class RandomTagWeights:
     FUNCTION = "randomize_weights"
     CATEGORY = "text"
 
-    def randomize_weights(self, text, min_weight, max_weight, threshold, max_tags, seed, shuffle_tags, input_text=None):
+    # ==========================
+    #      MAIN FUNCTION
+    # ==========================
+    def randomize_weights(
+        self,
+        text,
+        min_weight,
+        max_weight,
+        threshold,
+        max_tags,
+        seed,
+        shuffle_tags,
+        detect_by_commas,
+        group_parentheses,
+        preserve_existing_weights,
+        output_with_commas,
+        input_text=None
+    ):
         if input_text and input_text.strip():
             source_text = input_text
         else:
@@ -35,41 +145,89 @@ class RandomTagWeights:
 
         random.seed(seed)
 
-        weighted_pattern = r"\(([^:]+):([\d.]+)\)"
-        plain_tag_pattern = r"(^|,\s*)([^,]+?)(?=,|$|\s*$)"
+        # Regex patterns
+        weighted_pattern = r"\(([^()]+?):([\d.]+)\)"
+        parentheses_group_pattern = r"\([^()]*\)"
 
-        def get_random_weight():
-            return round(random.uniform(min_weight, max_weight), 2)
+        # Stores processed final tags
+        final_tags = []
 
-        qualifying_tags = []
-
-        def replace_weight(match):
+        # --------------------------
+        # 1. Extract weighted tags
+        # --------------------------
+        def extract_weighted(match):
             tag = match.group(1).strip()
-            new_weight = get_random_weight()
-            if new_weight >= threshold:
-                qualifying_tags.append((tag, new_weight))
-            return ""
+            weight = match.group(2).strip()
 
-        text_with_weighted = re.sub(weighted_pattern, replace_weight, source_text)
-
-        def wrap_plain_tag(match):
-            tag = match.group(2).strip()
-            if not re.search(rf"\({re.escape(tag)}:[\d.]+\)", text_with_weighted):
-                new_weight = get_random_weight()
+            if preserve_existing_weights:
+                final_tags.append((tag, float(weight)))
+            else:
+                new_weight = round(random.uniform(min_weight, max_weight), 2)
                 if new_weight >= threshold:
-                    qualifying_tags.append((tag, new_weight))
+                    final_tags.append((tag, new_weight))
+
             return ""
 
-        text_with_weighted = re.sub(plain_tag_pattern, wrap_plain_tag, text_with_weighted)
+        remainder = re.sub(weighted_pattern, extract_weighted, source_text)
 
+        # --------------------------
+        # 2. Extract grouped tags (...)
+        # --------------------------
+        grouped_tags = set()
+
+        if group_parentheses:
+            for match in re.findall(parentheses_group_pattern, remainder):
+                cleaned = match.strip("()").strip()
+                grouped_tags.add(cleaned)
+                remainder = remainder.replace(match, " ")
+
+            for tag in grouped_tags:
+                new_weight = round(random.uniform(min_weight, max_weight), 2)
+                if new_weight >= threshold:
+                    final_tags.append((tag, new_weight))
+
+        # --------------------------
+        # 3. Split remaining plain tags
+        # --------------------------
+        remainder = remainder.replace("\n", " ")
+
+        if detect_by_commas:
+            raw_tags = [t.strip() for t in remainder.split(",") if t.strip()]
+        else:
+            raw_tags = [t.strip() for t in remainder.split(" ") if t.strip()]
+
+        for tag in raw_tags:
+            if not tag:
+                continue
+
+            # Prevent nested tagging: skip if already processed
+            if any(tag == existing for existing, _ in final_tags):
+                continue
+
+            if preserve_existing_weights and re.match(weighted_pattern, tag):
+                continue
+
+            new_weight = round(random.uniform(min_weight, max_weight), 2)
+            if new_weight >= threshold:
+                final_tags.append((tag, new_weight))
+
+        # --------------------------
+        # 4. Shuffle + limit count
+        # --------------------------
         if shuffle_tags:
-            random.shuffle(qualifying_tags)
+            random.shuffle(final_tags)
 
-        qualifying_tags = qualifying_tags[:max_tags]
+        final_tags = final_tags[:max_tags]
 
-        modified_text = ", ".join(f"({tag}:{weight})" for tag, weight in qualifying_tags).strip()
+        # --------------------------
+        # 5. Output format
+        # --------------------------
+        sep = ", " if output_with_commas else " "
+
+        modified_text = sep.join(f"({tag}:{weight})" for tag, weight in final_tags)
 
         return (modified_text,)
+
 
 NODE_CLASS_MAPPINGS = {
     "RandomTagWeights": RandomTagWeights
