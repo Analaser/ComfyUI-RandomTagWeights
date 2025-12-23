@@ -98,6 +98,23 @@ class RandomTagWeights:
                         "tooltip": "Choose output format: commas or spaces between final tags."
                     }
                 ),
+                "add_random_commas": (
+                    "BOOLEAN",
+                    {
+                        "default": False,
+                        "tooltip": "If ON: randomly insert commas between tags at the end."
+                    }
+                ),
+                "num_random_commas": (
+                    "INT",
+                    {
+                        "default": 1,
+                        "min": 1,
+                        "max": 100,
+                        "step": 1,
+                        "tooltip": "Number of commas to randomly insert between tags."
+                    }
+                ),
             },
             "optional": {
                 "input_text": (
@@ -117,9 +134,6 @@ class RandomTagWeights:
     FUNCTION = "randomize_weights"
     CATEGORY = "text"
 
-    # ==========================
-    #      MAIN FUNCTION
-    # ==========================
     def randomize_weights(
         self,
         text,
@@ -133,6 +147,8 @@ class RandomTagWeights:
         group_parentheses,
         preserve_existing_weights,
         output_with_commas,
+        add_random_commas,
+        num_random_commas,
         input_text=None
     ):
         if input_text and input_text.strip():
@@ -145,16 +161,12 @@ class RandomTagWeights:
 
         random.seed(seed)
 
-        # Regex patterns
         weighted_pattern = r"\(([^()]+?):([\d.]+)\)"
         parentheses_group_pattern = r"\([^()]*\)"
 
-        # Stores processed final tags
         final_tags = []
 
-        # --------------------------
         # 1. Extract weighted tags
-        # --------------------------
         def extract_weighted(match):
             tag = match.group(1).strip()
             weight = match.group(2).strip()
@@ -170,9 +182,7 @@ class RandomTagWeights:
 
         remainder = re.sub(weighted_pattern, extract_weighted, source_text)
 
-        # --------------------------
-        # 2. Extract grouped tags (...)
-        # --------------------------
+        # 2. Extract grouped parentheses tags
         grouped_tags = set()
 
         if group_parentheses:
@@ -186,9 +196,7 @@ class RandomTagWeights:
                 if new_weight >= threshold:
                     final_tags.append((tag, new_weight))
 
-        # --------------------------
         # 3. Split remaining plain tags
-        # --------------------------
         remainder = remainder.replace("\n", " ")
 
         if detect_by_commas:
@@ -200,7 +208,10 @@ class RandomTagWeights:
             if not tag:
                 continue
 
-            # Prevent nested tagging: skip if already processed
+            # FIX: remove commas when output_with_commas is OFF
+            if not output_with_commas:
+                tag = tag.replace(",", "").strip()
+
             if any(tag == existing for existing, _ in final_tags):
                 continue
 
@@ -211,20 +222,38 @@ class RandomTagWeights:
             if new_weight >= threshold:
                 final_tags.append((tag, new_weight))
 
-        # --------------------------
         # 4. Shuffle + limit count
-        # --------------------------
         if shuffle_tags:
             random.shuffle(final_tags)
 
         final_tags = final_tags[:max_tags]
 
-        # --------------------------
         # 5. Output format
-        # --------------------------
         sep = ", " if output_with_commas else " "
 
         modified_text = sep.join(f"({tag}:{weight})" for tag, weight in final_tags)
+
+        # 6. Add random commas if enabled
+        if add_random_commas and len(final_tags) > 1:
+            # Find positions after each tag (where we can insert commas)
+            # We'll look for positions right after tag patterns like "(tag:weight)"
+            tag_pattern = r"\([^)]+:[^)]+\)"
+            matches = list(re.finditer(tag_pattern, modified_text))
+            
+            if matches:
+                # Get positions right after each tag (except the last one)
+                insertion_positions = [match.end() for match in matches[:-1]]
+                
+                # Limit number of commas to available positions
+                num_commas_to_add = min(num_random_commas, len(insertion_positions))
+                
+                # Randomly select positions to insert commas
+                selected_positions = random.sample(insertion_positions, num_commas_to_add)
+                selected_positions.sort(reverse=True)  # Sort in reverse to maintain indices when inserting
+                
+                # Insert commas at selected positions
+                for pos in selected_positions:
+                    modified_text = modified_text[:pos] + "," + modified_text[pos:]
 
         return (modified_text,)
 
